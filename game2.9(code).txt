@@ -1,0 +1,1436 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Магический Лес v2.0</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    background: #0a1a0a;
+    display: flex; justify-content: center; align-items: center;
+    height: 100vh; color: #fff;
+    font-family: 'Segoe UI', sans-serif; overflow: hidden;
+}
+#gameContainer { position: relative; box-shadow: 0 0 40px #00ff44; border: 3px solid #1a4a1a; }
+canvas { display: block; }
+
+/* HUD */
+#hud {
+    position: absolute; top: 0; left: 0; width: 100%;
+    pointer-events: none;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 10px 14px; gap: 8px;
+}
+#hud-left { display: flex; flex-direction: column; gap: 5px; font-size: 18px; font-weight: bold; text-shadow: 1px 1px 3px #000; }
+#hud-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; font-size: 14px; text-shadow: 1px 1px 3px #000; }
+.hud-tag {
+    background: rgba(0,0,0,0.5); border-radius: 6px; padding: 2px 9px;
+    font-size: 14px; font-weight: bold;
+}
+#combo-display { color: #ffdd00; font-size: 20px; display: none; }
+#dash-cd { color: #88ffcc; }
+#tp-cd    { color: #cc88ff; }
+#hints {
+    position: absolute; bottom: 8px; left: 10px;
+    font-size: 12px; opacity: 0.55; pointer-events: none; line-height: 1.7;
+}
+/* Миникарта */
+#minimap { position: absolute; bottom: 10px; right: 10px; opacity: 0.85; border: 1px solid #2a5a2a; border-radius: 4px; }
+
+/* Оверлеи */
+.overlay {
+    position: absolute; top:0; left:0; width:100%; height:100%;
+    background: rgba(0,0,0,0.88);
+    display: none; flex-direction: column; justify-content: center; align-items: center; text-align: center;
+    gap: 6px;
+}
+h1 { color: #ff4455; font-size: 32px; margin-bottom: 6px; }
+h2 { color: #00ff88; font-size: 22px; margin-bottom: 4px; }
+p  { color: #aaa; font-size: 15px; }
+
+button {
+    padding: 10px 26px; font-size: 16px; background: #3a8a3a;
+    color: #fff; border: none; cursor: pointer; border-radius: 8px;
+    margin-top: 10px; transition: background .18s, transform .1s;
+}
+button:hover  { background: #55aa55; }
+button:active { transform: scale(.97); }
+button:disabled { background: #223322; color: #555; cursor: default; }
+button.btn-hard { background: #7a1a1a; }
+button.btn-hard:hover { background: #aa3333; }
+/* Магазин */
+#shopOverlay {
+    position: absolute; top:0; left:0; width:100%; height:100%;
+    background: rgba(0,10,0,0.93);
+    display: none; flex-direction: column; align-items: center; overflow-y: auto; padding: 20px 10px;
+}
+#shopOverlay h2 { color: #00ff88; font-size: 24px; margin-bottom: 4px; }
+#shop-bal { color: #aaffaa; font-size: 15px; margin-bottom: 14px; }
+.shop-grid { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; max-width: 960px; }
+.si {
+    background: rgba(0,50,15,0.85); border: 2px solid #1f5a2a;
+    border-radius: 10px; padding: 14px 16px; width: 190px; text-align: center;
+    transition: border-color .15s;
+}
+.si:hover { border-color: #00dd66; }
+.si .ic  { font-size: 30px; margin-bottom: 6px; }
+.si .nm  { font-size: 14px; font-weight: bold; color: #ccffcc; margin-bottom: 4px; }
+.si .ds  { font-size: 11px; color: #77aa77; line-height: 1.35; margin-bottom: 8px; }
+.si .cs  { font-size: 13px; color: #ffdd44; margin-bottom: 6px; }
+.si .ow  { font-size: 11px; color: #55ff88; margin-bottom: 4px; min-height: 14px; }
+.si button { font-size: 13px; padding: 6px 14px; margin-top: 4px; }
+#shop-close-btn { margin-top: 16px; background: #333; color: #bbb; }
+#shop-close-btn:hover { background: #555; }
+
+
+/* Квесты */
+#questOverlay {
+    position: absolute; top:0; left:0; width:100%; height:100%;
+    background: rgba(0,5,15,0.95);
+    display: none; flex-direction: column; align-items: center; padding: 24px 16px;
+    overflow-y: auto;
+}
+#questOverlay h2 { color: #ffdd44; font-size: 24px; margin-bottom: 4px; }
+#quest-sub { color: #887744; font-size: 13px; margin-bottom: 18px; }
+.quest-list { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 600px; }
+.qi {
+    background: rgba(20,15,0,0.9); border: 2px solid #443300;
+    border-radius: 10px; padding: 14px 16px;
+    display: flex; align-items: center; gap: 14px;
+}
+.qi.done { border-color: #448844; background: rgba(0,30,0,0.9); }
+.qi .q-ic  { font-size: 26px; flex-shrink: 0; }
+.qi .q-inf { flex: 1; }
+.qi .q-nm  { font-size: 14px; font-weight: bold; color: #ffeeaa; margin-bottom: 3px; }
+.qi .q-bar-wrap { background: #222; border-radius: 4px; height: 8px; margin-bottom: 4px; overflow: hidden; }
+.qi .q-bar { height: 8px; background: #ffaa00; border-radius: 4px; transition: width .3s; }
+.qi.done .q-bar { background: #44cc44; }
+.qi .q-prog { font-size: 11px; color: #998844; }
+.qi .q-rew  { font-size: 12px; color: #ffdd44; flex-shrink: 0; text-align: right; }
+.qi .q-claim { font-size: 12px; padding: 5px 12px; margin-top: 0; background: #664400; }
+.qi .q-claim:hover { background: #886600; }
+.qi .q-claim:disabled { background: #222; color: #555; }
+#quest-close-btn { margin-top: 18px; background: #333; color: #bbb; }
+#quest-close-btn:hover { background: #555; }
+#quest-hud { position: absolute; bottom: 44px; left: 10px; font-size: 11px; opacity: 0.7; pointer-events: none; color: #ffdd88; }
+
+/* Валюта */
+#coin-hud { position:absolute; top:10px; left:50%; transform:translateX(-50%);
+  background:rgba(0,0,0,0.55); border-radius:8px; padding:3px 14px;
+  font-size:15px; font-weight:bold; color:#ffd700; pointer-events:none;
+  text-shadow:0 0 6px #aa8800; white-space:nowrap; }
+
+/* Постоянный магазин */
+#permShop {
+  position:absolute; top:0; left:0; width:100%; height:100%;
+  background:rgba(5,0,15,0.96);
+  display:none; flex-direction:column; align-items:center; padding:22px 14px; overflow-y:auto;
+}
+#permShop h2 { color:#ffd700; font-size:24px; margin-bottom:2px; }
+#perm-bal { color:#ccaa44; font-size:14px; margin-bottom:16px; }
+.perm-grid { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; max-width:900px; }
+.pi {
+  background:rgba(20,15,0,0.9); border:2px solid #443300;
+  border-radius:10px; padding:14px 16px; width:185px; text-align:center;
+  transition:border-color .15s;
+}
+.pi:hover { border-color:#ffd700; }
+.pi .p-ic  { font-size:28px; margin-bottom:5px; }
+.pi .p-nm  { font-size:13px; font-weight:bold; color:#ffe088; margin-bottom:4px; }
+.pi .p-ds  { font-size:11px; color:#998844; line-height:1.35; margin-bottom:8px; }
+.pi .p-lv  { font-size:11px; color:#ffcc44; margin-bottom:6px; min-height:14px; }
+.pi .p-cost{ font-size:13px; color:#ffd700; margin-bottom:6px; }
+.pi button { font-size:12px; padding:5px 12px; background:#5a3a00; margin-top:2px; }
+.pi button:hover { background:#7a5500; }
+.pi button:disabled { background:#1a1a0a; color:#444; }
+#perm-close { margin-top:16px; background:#333; color:#bbb; }
+#perm-close:hover { background:#555; }
+
+</style>
+</head>
+<body>
+<div id="gameContainer">
+<canvas id="gc" width="1200" height="900"></canvas>
+<canvas id="minimap" width="150" height="112"></canvas>
+
+<div id="coin-hud">🪙 0</div>
+<!-- HUD -->
+<div id="hud">
+  <div id="hud-left">
+    <span id="score-el">Очки: 0</span>
+    <span id="combo-display"></span>
+    <span id="status-line" style="font-size:13px;color:#88ffaa"></span>
+  </div>
+  <div id="hud-right">
+    <span id="mode-label" class="hud-tag"></span>
+    <span id="dash-cd"  class="hud-tag">⚡ Рывок: готов</span>
+    <span id="tp-cd"    class="hud-tag">🌀 Телепорт: готов</span>
+    <span id="arena-wall" class="hud-tag" style="display:none;color:#ff8844">🔥 Стена сжимается</span>
+  </div>
+</div>
+<div id="hints">
+  WASD/↑←↓→ — движение &nbsp;|&nbsp; Пробел — рывок &nbsp;|&nbsp; ЛКМ — телепорт
+  &nbsp;|&nbsp; F — магазин &nbsp;|&nbsp; Q — квесты &nbsp;|&nbsp; S — прокачка
+</div>
+
+<!-- Главное меню -->
+<div id="mainMenu" class="overlay">
+  <h1>🌿 Магический Лес</h1>
+  <p style="margin-bottom:8px">Выбери режим:</p>
+  <button onclick="startGame('normal')">Обычный (50 очков)</button>
+  <button onclick="startGame('arena')">Арена — сужающаяся карта</button>
+  <button class="btn-hard" onclick="startGame('hard')">Вечная Ночь — хардкор</button></div>
+
+<!-- Game Over -->
+<div id="gameOver" class="overlay">
+  <h1 id="go-title">ТЫ ПОЙМАН!</h1>
+  <p id="go-sub">Монстры настигли тебя.</p>
+  <p>Счёт: <b id="go-score">0</b></p>
+  <button onclick="showMenu()">В меню</button>
+  <button onclick="restartGame()">Снова</button>
+</div>
+
+<!-- Win -->
+<div id="winScreen" class="overlay">
+  <h1>🏆 ПОБЕДА!</h1>
+  <p>Ты собрал 50 очков и выжил!</p>
+  <p>Счёт: <b id="win-score">0</b></p>
+  <button onclick="showMenu()">В меню</button>
+  <button onclick="restartGame()">Снова</button>
+</div>
+
+<!-- Пауза -->
+<div id="pauseOv" class="overlay">
+  <h1>ПАУЗА</h1>
+  <p>Escape — продолжить &nbsp;|&nbsp; F — магазин</p>
+</div>
+
+<!-- Магазин -->
+<div id="shopOverlay">
+  <h2>🌿 Магазин усилений</h2>
+  <div id="shop-bal">Очки: <span id="shop-score">0</span></div>
+  <div class="shop-grid" id="shop-grid"></div>
+  <button id="shop-close-btn" onclick="closeShop()">Закрыть (F / Escape)</button>
+</div>
+
+<!-- Квесты -->
+<div id="questOverlay">
+  <h2>📋 Ежедневные квесты</h2>
+  <div id="quest-sub">Обновляются каждый день. Выполняй — получай бонусные очки.</div>
+  <div class="quest-list" id="quest-list"></div>
+  <button id="quest-close-btn" onclick="closeQuests()">Закрыть (Q / Escape)</button>
+</div>
+<div id="quest-hud"></div>
+
+<!-- Постоянный магазин -->
+<div id="permShop">
+  <h2>🏪 Постоянный магазин</h2>
+  <div id="perm-bal">🪙 <span id="perm-coins">0</span> кристаллов</div>
+  <div class="perm-grid" id="perm-grid"></div>
+  <button id="perm-close" onclick="closePermShop()">Закрыть (S / Escape)</button>
+</div>
+</div><!-- /gameContainer -->
+
+<script>
+
+// Safe storage wrappers (graceful fallback if storage unavailable)
+const safeLS = (() => {
+  try { const s=window['local'+'Storage']; s.setItem('_t','1'); s.removeItem('_t'); return s; } catch(e) {}
+  const mem = {};
+  return { getItem: k => mem[k]||null, setItem: (k,v) => { mem[k]=String(v); }, removeItem: k => { delete mem[k]; } };
+})();
+const safeSS = (() => {
+  try { const s=window['session'+'Storage']; s.setItem('_t','1'); s.removeItem('_t'); return s; } catch(e) {}
+  const mem = {};
+  return { getItem: k => mem[k]||null, setItem: (k,v) => { mem[k]=String(v); }, removeItem: k => { delete mem[k]; } };
+})();
+// ── DevTools protection ───────────────────────────────────────────
+(function(){
+  document.addEventListener('keydown', function(e){
+    if(e.key==='F12'){ e.preventDefault(); e.stopImmediatePropagation(); return false; }
+    if(e.ctrlKey && e.shiftKey && ['I','J','C'].includes(e.key.toUpperCase())){ e.preventDefault(); e.stopImmediatePropagation(); return false; }
+    if(e.ctrlKey && e.key.toUpperCase()==='U'){ e.preventDefault(); e.stopImmediatePropagation(); return false; }
+  }, true);
+  document.addEventListener('contextmenu', function(e){ e.preventDefault(); return false; }, true);
+  setInterval(function(){
+    if(window.outerWidth - window.innerWidth > 160 || window.outerHeight - window.innerHeight > 160){
+      document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#0a1a0a;color:#ff4455;font-family:monospace;font-size:24px">⛔ Доступ закрыт</div>';
+    }
+  }, 1000);
+})();
+
+// ═══════════════════════════════════════════════════════════
+//  CANVAS & CONSTANTS
+// ═══════════════════════════════════════════════════════════
+const canvas = document.getElementById('gc');
+const ctx    = canvas.getContext('2d');
+const mmCv   = document.getElementById('minimap');
+const mmCtx  = mmCv.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const MM_W = mmCv.width, MM_H = mmCv.height;
+
+const scoreEl    = document.getElementById('score-el');
+const comboEl    = document.getElementById('combo-display');
+const statusEl   = document.getElementById('status-line');
+const modeLabel  = document.getElementById('mode-label');
+const dashCdEl   = document.getElementById('dash-cd');
+const tpCdEl     = document.getElementById('tp-cd');
+const arenaWall  = document.getElementById('arena-wall');
+const goTitle    = document.getElementById('go-title');
+const goSub      = document.getElementById('go-sub');
+const goScore    = document.getElementById('go-score');
+const winScore   = document.getElementById('win-score');
+const shopScEl   = document.getElementById('shop-score');
+
+let gameRunning = false, isPaused = false, isShopOpen = false;
+// Quest trackers — declared here so resetState can access them
+const qTrack = { gems:0, time:0, orb_kills:0, combos:0, score:0, tps:0, dashes:0, buys:0 };
+let questSessionStart = 0;
+let sessionCoinsAwarded = false;
+let monsterKillCoins = 0;
+const QUEST_KEY = 'mf_quests_' + todaySeed();
+
+const PERM_ITEMS = [
+  { id:'startSpeed',  ic:'👟', nm:'Стартовая скорость', ds:'Игрок стартует быстрее',           cost:[30,60,100], maxLv:3, effect:'baseSpeed' },
+  { id:'startShield', ic:'🛡', nm:'Стартовый щит',      ds:'Начинаешь каждую игру со щитом',   cost:[50],        maxLv:1, effect:'shield'    },
+  { id:'bonusScore',  ic:'⭐', nm:'Бонусные очки',      ds:'+2 очка к стартовому счёту',       cost:[25,50],     maxLv:2, effect:'score'     },
+  { id:'orbCooldown', ic:'🔵', nm:'Частая сфера',       ds:'Синяя сфера появляется чаще (-5с)', cost:[40,80],     maxLv:2, effect:'orb'       },
+  { id:'comboKeep',   ic:'🔥', nm:'Долгое комбо',       ds:'Комбо не сбрасывается 2 сек дольше',cost:[35],       maxLv:1, effect:'combo'     },
+  { id:'extraLife',   ic:'❤️', nm:'Запасная жизнь',     ds:'Продолжить один раз после смерти',  cost:[80],        maxLv:1, effect:'life'      },
+];
+
+const QUEST_POOL = [
+  { id:'gems10',   ic:'💎', nm:'Кристаллолов',      desc:'Собери 10 кристаллов за сессию',  type:'gems',     target:10,  reward:8  },
+  { id:'gems25',   ic:'💎', nm:'Жадный собиратель',  desc:'Собери 25 кристаллов за сессию',  type:'gems',     target:25,  reward:18 },
+  { id:'survive60',ic:'⏱', nm:'Выживший',           desc:'Продержись 60 секунд',            type:'time',     target:60,  reward:10 },
+  { id:'survive120',ic:'⏱',nm:'Стойкий',            desc:'Продержись 2 минуты',             type:'time',     target:120, reward:20 },
+  { id:'kill5',    ic:'💀', nm:'Охотник',            desc:'Убей 5 монстров синей сферой',    type:'orb_kills',target:5,   reward:12 },
+  { id:'kill10',   ic:'💀', nm:'Истребитель',        desc:'Убей 10 монстров синей сферой',   type:'orb_kills',target:10,  reward:22 },
+  { id:'combo3',   ic:'🔥', nm:'Комбо-мастер',       desc:'Набери комбо 3 раза за сессию',   type:'combos',   target:3,   reward:10 },
+  { id:'score30',  ic:'⭐', nm:'Набери 30 очков',    desc:'Доберись до 30 очков',            type:'score',    target:30,  reward:14 },
+  { id:'score50',  ic:'🏆', nm:'Победитель',         desc:'Набери 50 очков',                 type:'score',    target:50,  reward:25 },
+  { id:'tp3',      ic:'🌀', nm:'Телепортёр',         desc:'Используй телепорт 3 раза',       type:'tps',      target:3,   reward:8  },
+  { id:'dash5',    ic:'⚡', nm:'Молния',             desc:'Используй рывок 5 раз',           type:'dashes',   target:5,   reward:8  },
+  { id:'shop1',    ic:'🛒', nm:'Покупатель',         desc:'Купи усиление в магазине',        type:'buys',     target:1,   reward:6  },
+];
+
+function todaySeed() {
+  const d = new Date();
+  return d.getFullYear()*10000 + (d.getMonth()+1)*100 + d.getDate();
+}
+const COIN_KEY = 'mf_coins';
+let coins = 0;
+let isPermShopOpen = false;
+const PERM_KEY = 'mf_perks';
+let permState = {};
+let isQuestOpen = false;
+let questState;
+// QUEST_POOL defined later (not used in resetState directly)
+let currentMode = 'normal'; // normal | hard | arena
+let score = 0;
+let bossSpawned = false;
+const WIN_SCORE = 50;
+
+let arenaRadius = 0;
+let isNight = false;
+const NIGHT_RADIUS = 180;
+
+let combo = 0, comboTimer = 0;
+const COMBO_TIMEOUT = 4000;
+const COMBO_BONUS   = 5;
+
+let freezeUntil = 0;
+let magnetUntil = 0;
+const MAGNET_R = 200;
+let shrinkUntil = 0;
+let decoy = null;
+
+const UPG = {
+  spawn:   { cost:13, bought:false },
+  speed:   { cost:10, bought:0     },
+  shield:  { cost:8,  bought:false },
+  repulse: { cost:15, bought:0     },
+  shrink:  { cost:12, bought:false },
+  decoy:   { cost:10, bought:false },
+};
+let shieldActive = false, shieldCooldown = false;
+let extraLifeUsed = false;
+
+const player = {
+  x:W/2, y:H/2, size:20, baseSpeed:5, color:'#4da6ff',
+  get speed(){ return this.baseSpeed + UPG.speed.bought*2 + (shrinkUntil > performance.now() ? 1 : 0); },
+  get drawSize(){ return shrinkUntil > performance.now() ? this.size*0.6 : this.size; }
+};
+
+const keys = {
+  ArrowUp:false, ArrowDown:false, ArrowLeft:false, ArrowRight:false,
+  KeyW:false, KeyS:false, KeyA:false, KeyD:false,
+  Space:false
+};
+let mouseX = W/2, mouseY = H/2;
+let dashCooldown = 0, dashActive = false, dashTimer = 0;
+const DASH_CD = 3000, DASH_DUR = 180, DASH_SPEED = 18;
+let dashDX = 0, dashDY = 0;
+let tpCooldown = 0;
+const TP_CD = 8000;
+
+document.addEventListener('keydown', e => {
+  if (keys.hasOwnProperty(e.code)) keys[e.code] = true;
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
+  if (e.code === 'Escape') { if (isShopOpen) closeShop(); else togglePause(); }
+  if (e.code === 'KeyF' && gameRunning) { isShopOpen ? closeShop() : openShop(); }
+  if (e.code === 'KeyE' && gameRunning && UPG.decoy.bought && !isPaused) placeDecoy();
+  if (e.code === 'KeyQ') { if (isQuestOpen) closeQuests(); else openQuests(); }
+  if (e.code === 'Escape' && isQuestOpen) closeQuests();
+  if (e.code === 'KeyS' && !gameRunning && !isPermShopOpen) { openPermShop(); } else if (e.code === 'KeyS' && isPermShopOpen) { closePermShop(); }
+  if (e.code === 'Escape' && isPermShopOpen) { closePermShop(); return; }
+});
+document.addEventListener('keyup', e => { if (keys.hasOwnProperty(e.code)) keys[e.code] = false; });
+canvas.addEventListener('mousemove', e => {
+  const r = canvas.getBoundingClientRect();
+  mouseX = e.clientX - r.left; mouseY = e.clientY - r.top;
+});
+canvas.addEventListener('click', e => {
+  if (!gameRunning || isPaused || isShopOpen) return;
+  const now = performance.now();
+  if (now - tpCooldown < TP_CD) return;
+  const r = canvas.getBoundingClientRect();
+  const tx = e.clientX - r.left, ty = e.clientY - r.top;
+  player.x = Math.max(player.size, Math.min(W - player.size, tx));
+  player.y = Math.max(player.size, Math.min(H - player.size, ty));
+  tpCooldown = now;
+  addParticles(player.x, player.y, '#cc88ff', 14);
+  questTick('tps');
+});
+
+const gem     = { x:0, y:0, size:15, active:false, type:'green' };
+const goldGem = { x:0, y:0, size:14, active:false, lastSpawn:0, spawnInterval:25000, spawnedAt:0 };
+const poisGem = { x:0, y:0, size:14, active:false, lastSpawn:0, spawnInterval:18000, spawnedAt:0 };
+const iceGem  = { x:0, y:0, size:14, active:false, lastSpawn:0, spawnInterval:30000, spawnedAt:0 };
+const magnetGemObj = { x:0, y:0, size:14, active:false, lastSpawn:0, spawnInterval:22000, spawnedAt:0 };
+const blueOrb = { x:0, y:0, size:12, active:false, spawnInterval:20000, lifeTime:5000, lastSpawnTime:0, spawnedAt:0 };
+
+let monsters = [];
+const projectiles = [];
+let hazards = [];
+
+const trees = [];
+for (let i=0;i<70;i++) trees.push({x:Math.random()*W, y:Math.random()*H, r:16+Math.random()*36});
+
+const particles = [];
+function addParticles(x, y, color, count=8) {
+  for (let i=0;i<count;i++) {
+    const a = Math.random()*Math.PI*2, spd = 1+Math.random()*4;
+    particles.push({ x, y, vx:Math.cos(a)*spd, vy:Math.sin(a)*spd, life:1, color });
+  }
+}
+
+// ═══ SPAWN HELPERS ═══════════════════════════════════════════════
+function rndEdge() {
+  if (Math.random()<0.5) return {x: Math.random()<0.5?-50:W+50, y:Math.random()*H};
+  return {x:Math.random()*W, y:Math.random()<0.5?-50:H+50};
+}
+function rndInside(margin=80) {
+  return { x:margin+Math.random()*(W-margin*2), y:margin+Math.random()*(H-margin*2) };
+}
+function isInArena(x,y,extra=0){
+  if (!arenaRadius) return true;
+  const cx=W/2,cy=H/2,dx=x-cx,dy=y-cy;
+  return Math.sqrt(dx*dx+dy*dy) < arenaRadius - extra;
+}
+
+function spawnGem() {
+  let p; let att=0;
+  do { p=rndInside(60); att++; } while (!isInArena(p.x,p.y,30) && att<100);
+  gem.x=p.x; gem.y=p.y; gem.active=true;
+}
+function spawnSpecialGem(g) {
+  const p=rndInside(60);
+  g.x=p.x; g.y=p.y; g.active=true;
+}
+
+function spawnMonster() {
+  const e = rndEdge();
+  const spd = Math.min(2 + score*0.04, 7);
+  monsters.push({ type:'chaser', x:e.x, y:e.y, size:25, speed:spd, vx:0,vy:0, color:'#ff3333', hp:1, target:player });
+}
+function spawnSniper() {
+  const e = rndEdge();
+  monsters.push({ type:'sniper', x:e.x, y:e.y, size:22, speed:0.5, vx:0,vy:0, color:'#ff8800', hp:1, shootTimer:0, shootInterval:3500 });
+}
+function spawnInvisible() {
+  const e = rndEdge();
+  monsters.push({ type:'invisible', x:e.x, y:e.y, size:24, speed:2.5+score*0.03, vx:0,vy:0, color:'#00ffcc', hp:1 });
+}
+function spawnSplitter() {
+  const e = rndEdge();
+  monsters.push({ type:'splitter', x:e.x, y:e.y, size:28, speed:2+score*0.04, vx:0,vy:0, color:'#ff44bb', hp:1 });
+}
+function spawnMiniBoss() {
+  const e = rndEdge();
+  monsters.push({ type:'miniboss', x:e.x, y:e.y, size:55, speed:1.2, vx:0,vy:0, color:'#cc2200', hp:3 });
+}
+function spawnBouncer() {
+  const p=rndInside(100); const a=Math.random()*Math.PI*2; const spd=1.5;
+  monsters.push({ type:'bouncer', x:p.x, y:p.y, size:35, speed:spd, vx:Math.cos(a)*spd, vy:Math.sin(a)*spd, color:'#9b30ff', hp:1 });
+}
+
+function spawnHazards() {
+  hazards = [];
+  for (let i=0;i<4;i++) { const p=rndInside(100); hazards.push({type:'swamp',x:p.x,y:p.y,r:45}); }
+  for (let i=0;i<3;i++) { const p=rndInside(100); hazards.push({type:'spikes',x:p.x,y:p.y,r:22}); }
+  const pa=rndInside(120), pb=rndInside(120);
+  hazards.push({type:'portal',x:pa.x,y:pa.y,r:24,partner:1,angle:0});
+  hazards.push({type:'portal',x:pb.x,y:pb.y,r:24,partner:0,angle:0});
+}
+
+// ═══ COLLISION ═══════════════════════════════════════════════════
+function dist2(a,b){ const dx=a.x-b.x,dy=a.y-b.y; return dx*dx+dy*dy; }
+function distCC(a,b){ return Math.sqrt(dist2(a,b)); }
+function cirHit(a,b){ return distCC(a,b) < a.size+b.size; }
+
+const MSEP = 18;
+function resolveMonsterCollisions() {
+  for (let i=0;i<monsters.length;i++) for (let j=i+1;j<monsters.length;j++) {
+    const m1=monsters[i],m2=monsters[j];
+    const dx=m2.x-m1.x,dy=m2.y-m1.y;
+    const d=Math.sqrt(dx*dx+dy*dy)||0.01;
+    const minD=m1.size+m2.size+MSEP;
+    if (d<minD) {
+      const ov=minD-d, nx=dx/d, ny=dy/d;
+      m1.x-=nx*ov*0.5; m1.y-=ny*ov*0.5;
+      m2.x+=nx*ov*0.5; m2.y+=ny*ov*0.5;
+      const dvx=m2.vx-m1.vx,dvy=m2.vy-m1.vy, vel=dvx*nx+dvy*ny;
+      if (vel>0) continue;
+      const j2=-(1+1.4)*vel/2;
+      m1.vx-=j2*nx; m1.vy-=j2*ny;
+      m2.vx+=j2*nx; m2.vy+=j2*ny;
+      for (const m of [m1,m2]) {
+        const s=Math.sqrt(m.vx**2+m.vy**2), cap=m.speed*2.5;
+        if (s>cap){ m.vx=m.vx/s*cap; m.vy=m.vy/s*cap; }
+      }
+    }
+  }
+}
+
+// ═══ PLAYER HIT ══════════════════════════════════════════════════
+function playerHit(p) {
+  if (shieldActive && p===player) {
+    shieldActive=false; shieldCooldown=true;
+    addParticles(p.x,p.y,'#00ccff',20);
+    const dx=p.x-(p.hitMonster?.x||p.x), dy=p.y-(p.hitMonster?.y||p.y);
+    const d=Math.sqrt(dx*dx+dy*dy)||1;
+    p.x=Math.max(p.size,Math.min(W-p.size,p.x+(dx/d)*70));
+    p.y=Math.max(p.size,Math.min(H-p.size,p.y+(dy/d)*70));
+    return;
+  }
+  gameOver();
+}
+
+// ═══ SHOP ════════════════════════════════════════════════════════
+const SHOP_ITEMS = [
+  { id:'spawn',   ic:'👹', nm:'Редкий спавн', ds:'Монстры каждые 5 очков вместо 3',      cost:13, once:true },
+  { id:'speed',   ic:'⚡', nm:'Ускорение',    ds:'Скорость +2 (стак)',                    cost:10, once:false },
+  { id:'shield',  ic:'🛡', nm:'Щит',          ds:'Поглощает 1 удар. Перезаряжается',      cost:8,  once:false },
+  { id:'repulse', ic:'💥', nm:'Отпугиватель', ds:'Отбрасывает всех монстров на 300px',    cost:15, once:false },
+  { id:'shrink',  ic:'🐭', nm:'Уменьшение',   ds:'Хитбокс ×0.6 на 20 сек',               cost:12, once:false },
+  { id:'decoy',   ic:'🎯', nm:'Приманка',     ds:'Кнопка E: монстры идут к точке 8 сек', cost:10, once:true  },
+];
+
+function buildShopHTML() {
+  const g = document.getElementById('shop-grid');
+  g.innerHTML = '';
+  SHOP_ITEMS.forEach(item => {
+    const div = document.createElement('div'); div.className='si'; div.id='si-'+item.id;
+    div.innerHTML = `
+      <div class="ic">${item.ic}</div>
+      <div class="nm">${item.nm}</div>
+      <div class="ds">${item.ds}</div>
+      <div class="cs">Цена: ${item.cost} очков</div>
+      <div class="ow" id="ow-${item.id}"></div>
+      <button id="btn-${item.id}" onclick="buyUpgrade('${item.id}')">Купить</button>`;
+    g.appendChild(div);
+  });
+}
+
+function refreshShopUI() {
+  shopScEl.textContent = score;
+  SHOP_ITEMS.forEach(item => {
+    const btn = document.getElementById('btn-'+item.id);
+    const ow  = document.getElementById('ow-'+item.id);
+    const up  = UPG[item.id];
+    const canAfford = score >= item.cost;
+    if (item.id==='shield') {
+      if (shieldActive)        { btn.textContent='Активен';      btn.disabled=true;        ow.textContent='🛡 Защищает'; }
+      else if (shieldCooldown) { btn.textContent='Перезарядить'; btn.disabled=!canAfford;  ow.textContent='⟳ КД'; }
+      else                     { btn.textContent=up.bought?'Снова':'Купить'; btn.disabled=!canAfford; ow.textContent=''; }
+    } else if (item.once && up.bought) {
+      btn.textContent='Куплено'; btn.disabled=true; ow.textContent='✓ Активно';
+    } else {
+      btn.disabled=!canAfford;
+      btn.textContent='Купить';
+      ow.textContent = (up.bought&&!item.once) ? `✓ ×${up.bought}` : '';
+    }
+  });
+}
+
+function openShop() {
+  if (!gameRunning) return;
+  isShopOpen=true; isPaused=true;
+  Object.keys(keys).forEach(k=>keys[k]=false);
+  document.getElementById('pauseOv').style.display='none';
+  refreshShopUI();
+  document.getElementById('shopOverlay').style.display='flex';
+}
+function closeShop() {
+  isShopOpen=false; isPaused=false;
+  document.getElementById('shopOverlay').style.display='none';
+}
+
+function buyUpgrade(id) {
+  const item = SHOP_ITEMS.find(i=>i.id===id);
+  if (!item || score < item.cost) return;
+  score -= item.cost;
+  const up = UPG[id];
+  if (id==='shield') {
+    if (shieldActive) return;
+    up.bought=true; shieldActive=true; shieldCooldown=false;
+  } else if (id==='repulse') {
+    up.bought++;
+    monsters.forEach(m => {
+      const dx=m.x-player.x, dy=m.y-player.y, d=Math.sqrt(dx*dx+dy*dy)||1;
+      m.x+=dx/d*300; m.y+=dy/d*300;
+      m.vx=dx/d*8;   m.vy=dy/d*8;
+      m.x=Math.max(-60,Math.min(W+60,m.x));
+      m.y=Math.max(-60,Math.min(H+60,m.y));
+    });
+    addParticles(player.x,player.y,'#ff8844',30);
+  } else if (id==='shrink') {
+    up.bought++;
+    shrinkUntil = performance.now()+20000;
+    addParticles(player.x,player.y,'#ffcc00',12);
+  } else if (id==='decoy') {
+    up.bought=true;
+  } else if (id==='spawn') {
+    if (up.bought) return; up.bought=true;
+  } else if (id==='speed') {
+    up.bought++;
+  }
+  scoreEl.textContent='Очки: '+score;
+  questTick('buys');
+  refreshShopUI();
+}
+
+function placeDecoy() {
+  decoy = { x:mouseX, y:mouseY, until:performance.now()+8000 };
+  addParticles(mouseX,mouseY,'#ffdd44',12);
+}
+
+// ═══ UPDATE ══════════════════════════════════════════════════════
+function update(ts) {
+  if (!gameRunning||isPaused) return;
+  const now = ts;
+
+  // Арена: сужаем
+  if (currentMode==='arena' && arenaRadius>0) {
+    arenaRadius = Math.max(180, arenaRadius - 0.04);
+    arenaWall.style.display='block';
+    monsters.forEach(m => {
+      const dx=m.x-W/2,dy=m.y-H/2;
+      if (Math.sqrt(dx*dx+dy*dy)>arenaRadius+60) { const p=rndInside(100); m.x=p.x; m.y=p.y; }
+    });
+    const pd=Math.sqrt((player.x-W/2)**2+(player.y-H/2)**2);
+    if (pd>arenaRadius-player.size) playerHit(player);
+  }
+
+  if (decoy && now>decoy.until) decoy=null;
+  if (combo>0 && now-comboTimer>COMBO_TIMEOUT) { combo=0; comboEl.style.display='none'; }
+
+  if (!blueOrb.active && now-blueOrb.lastSpawnTime>blueOrb.spawnInterval) spawnBlueOrb(now);
+  if (blueOrb.active && now-blueOrb.spawnedAt>blueOrb.lifeTime) { blueOrb.active=false; blueOrb.lastSpawnTime=now; }
+
+  const specGems = [goldGem,poisGem,iceGem,magnetGemObj];
+  specGems.forEach(g => {
+    if (!g.active && now-g.lastSpawn>g.spawnInterval) { spawnSpecialGem(g); g.lastSpawn=now; g.spawnedAt=now; }
+    if (g.active && now-g.spawnedAt>10000) { g.active=false; g.lastSpawn=now; }
+  });
+
+  // Dash
+  if (keys.Space && !dashActive && now-dashCooldown>DASH_CD) {
+    dashActive=true; dashTimer=now; dashCooldown=now;
+    let mx=0,my=0;
+    if (keys.KeyW||keys.ArrowUp)    my=-1;
+    if (keys.KeyS||keys.ArrowDown)  my= 1;
+    if (keys.KeyA||keys.ArrowLeft)  mx=-1;
+    if (keys.KeyD||keys.ArrowRight) mx= 1;
+    if (mx===0&&my===0) { mx=0;my=-1; }
+    const dl=Math.sqrt(mx*mx+my*my)||1; dashDX=mx/dl; dashDY=my/dl;
+    addParticles(player.x,player.y,'#88ffcc',10);
+    questTick('dashes');
+  }
+  if (dashActive) {
+    if (now-dashTimer<DASH_DUR) {
+      player.x=Math.max(player.size,Math.min(W-player.size,player.x+dashDX*DASH_SPEED));
+      player.y=Math.max(player.size,Math.min(H-player.size,player.y+dashDY*DASH_SPEED));
+    } else { dashActive=false; }
+  }
+
+  // Player 1 movement (WASD)
+  if (!dashActive) {
+    const spd=player.speed;
+    if (keys.KeyW && player.y>player.size)    player.y-=spd;
+    if (keys.KeyS && player.y<H-player.size)  player.y+=spd;
+    if (keys.KeyA && player.x>player.size)    player.x-=spd;
+    if (keys.KeyD && player.x<W-player.size)  player.x+=spd;
+  }
+
+
+  // Hazards
+  hazards.forEach((h,hi) => {
+    if (h.type==='portal') h.angle=(h.angle||0)+0.04;
+    const inH = distCC(player,h) < h.r+player.size;
+    if (!inH) return;
+    if (h.type==='swamp' && !dashActive) {
+      player.x += (player.x < W/2 ? 0.5 : -0.5);
+      player.y += (player.y < H/2 ? 0.5 : -0.5);
+    }
+    if (h.type==='spikes') { playerHit(player); return; }
+    if (h.type==='portal') {
+      const partner = hazards[h.partner];
+      if (partner) { player.x=partner.x; player.y=partner.y; addParticles(player.x,player.y,'#cc88ff',12); }
+    }
+  });
+
+
+  // Gem collection helper
+  function collectGem(gobj, value, effect) {
+    if (!gobj.active) return;
+    const target = player;
+    if (magnetUntil>now) {
+      const dx=target.x-gobj.x,dy=target.y-gobj.y,d=Math.sqrt(dx*dx+dy*dy)||1;
+      gobj.x+=dx/d*8; gobj.y+=dy/d*8;
+    }
+    const p1hit = distCC(player,gobj)<player.size+gobj.size;
+    if (!p1hit) return;
+    gobj.active=false; gobj.lastSpawn=now;
+    addParticles(gobj.x,gobj.y,'#ffee88',10);
+    if (effect) effect();
+    if (value>0) {
+      score+=value; scoreEl.textContent='Очки: '+score;
+      questTick('gems'); questTick('score', 0);
+      combo++; comboTimer=now;
+      if (combo>=COMBO_BONUS) { comboEl.style.display='block'; comboEl.textContent=`🔥 КОМБО ×${Math.floor(combo/COMBO_BONUS)+1}`; questTick('combos'); }
+    } else if (value<0) {
+      score=Math.max(0,score+value); scoreEl.textContent='Очки: '+score;
+      combo=0; comboEl.style.display='none';
+    }
+    if (value>0) {
+      const spawnEvery = UPG.spawn.bought ? 5 : 3;
+      if (score % spawnEvery===0) spawnMonster();
+      if (score>=20&&!bossSpawned) { spawnBouncer(); bossSpawned=true; }
+      if (score===30) spawnSniper();
+      if (score===40) spawnInvisible();
+      if (score===15) spawnSplitter();
+      if (score%25===0&&score>0) spawnMiniBoss();
+      if (currentMode==='normal'&&score>=WIN_SCORE) { winGame(); return; }
+    }
+  }
+
+  // Main green gem
+  if (gem.active) {
+    if (magnetUntil>now) {
+      const dx=player.x-gem.x,dy=player.y-gem.y,d=Math.sqrt(dx*dx+dy*dy)||1;
+      gem.x+=dx/d*8; gem.y+=dy/d*8;
+    }
+    const p1h=distCC(player,gem)<player.size+gem.size;
+    if (p1h) {
+      gem.active=false;
+      addParticles(gem.x,gem.y,'#00ff88',8);
+      score++; scoreEl.textContent='Очки: '+score;
+      questTick('gems'); questTick('score', 0);
+      combo++; comboTimer=now;
+      if (combo>=COMBO_BONUS) { comboEl.style.display='block'; comboEl.textContent=`🔥 КОМБО ×${Math.floor(combo/COMBO_BONUS)+1}`; }
+      spawnGem();
+      const spawnEvery=UPG.spawn.bought?5:3;
+      if (score%spawnEvery===0) spawnMonster();
+      if (score>=20&&!bossSpawned) { spawnBouncer(); bossSpawned=true; }
+      if (score===30) spawnSniper();
+      if (score===40) spawnInvisible();
+      if (score===15) spawnSplitter();
+      if (score%25===0&&score>0) spawnMiniBoss();
+      if (currentMode==='normal'&&score>=WIN_SCORE) { winGame(); return; }
+    }
+  }
+
+  collectGem(goldGem,3,null);
+  collectGem(poisGem,-2,()=>{ statusEl.textContent='☠ Яд! -2 очка'; setTimeout(()=>statusEl.textContent='',2000); });
+  collectGem(iceGem,1,()=>{ freezeUntil=now+4000; addParticles(player.x,player.y,'#aaddff',16); statusEl.textContent='❄ Заморозка!'; setTimeout(()=>statusEl.textContent='',4000); });
+  collectGem(magnetGemObj,1,()=>{ magnetUntil=now+10000; statusEl.textContent='🧲 Магнит 10с'; setTimeout(()=>statusEl.textContent='',10000); });
+
+  // Blue orb
+  if (blueOrb.active && distCC(player,blueOrb)<player.size+blueOrb.size) {
+    blueOrb.active=false; blueOrb.lastSpawnTime=now;
+    if (monsters.length>0) {
+      let idx=0,best=Infinity;
+      monsters.forEach((m,i)=>{ const d=dist2(m,player); if(d<best){best=d;idx=i;} });
+      addParticles(monsters[idx].x,monsters[idx].y,'#3399ff',12);
+      if (monsters[idx].type==='splitter') {
+        const m=monsters[idx];
+        for(let k=0;k<2;k++) monsters.push({type:'chaser',x:m.x+(k?20:-20),y:m.y,size:14,speed:m.speed*1.2,vx:0,vy:0,color:'#ff44bb',hp:1});
+      }
+      monsters.splice(idx,1);
+      questTick('orb_kills');
+      monsterKillCoins++;
+    }
+  }
+
+  // Projectiles
+  for (let i=projectiles.length-1;i>=0;i--) {
+    const p=projectiles[i];
+    p.x+=p.vx; p.y+=p.vy; p.life--;
+    if (p.life<=0||p.x<0||p.x>W||p.y<0||p.y>H) { projectiles.splice(i,1); continue; }
+    if (distCC(p,player)<player.size+p.size) { projectiles.splice(i,1); playerHit(player); return; }
+  }
+
+  // Monsters AI
+  const frozen = freezeUntil>now;
+  resolveMonsterCollisions();
+  for (let i=monsters.length-1;i>=0;i--) {
+    const m=monsters[i];
+    if (frozen && m.type!=='miniboss') { m.vx*=0.8; m.vy*=0.8; continue; }
+
+    // Target: decoy > nearest player
+    let tgt = player;
+    if (decoy) tgt = decoy;
+
+    if (m.type==='bouncer') {
+      m.x+=m.vx; m.y+=m.vy;
+      if (m.x-m.size<0||m.x+m.size>W) { m.vx=-m.vx; m.x=Math.max(m.size,Math.min(W-m.size,m.x)); }
+      if (m.y-m.size<0||m.y+m.size>H) { m.vy=-m.vy; m.y=Math.max(m.size,Math.min(H-m.size,m.y)); }
+    } else if (m.type==='sniper') {
+      const dx=tgt.x-m.x, dy=tgt.y-m.y, d=Math.sqrt(dx*dx+dy*dy)||1;
+      m.vx+=(dx/d*m.speed - m.vx)*0.05;
+      m.vy+=(dy/d*m.speed - m.vy)*0.05;
+      m.x+=m.vx; m.y+=m.vy;
+      m.shootTimer=(m.shootTimer||0)+16;
+      if (m.shootTimer>m.shootInterval) {
+        m.shootTimer=0;
+        const pdx=tgt.x-m.x,pdy=tgt.y-m.y,pd=Math.sqrt(pdx*pdx+pdy*pdy)||1;
+        projectiles.push({x:m.x,y:m.y,vx:pdx/pd*5,vy:pdy/pd*5,size:7,life:120,color:'#ff6600'});
+      }
+    } else {
+      const dx=tgt.x-m.x, dy=tgt.y-m.y, d=Math.sqrt(dx*dx+dy*dy)||1;
+      m.vx+=(dx/d*m.speed - m.vx)*0.08;
+      m.vy+=(dy/d*m.speed - m.vy)*0.08;
+      m.x+=m.vx; m.y+=m.vy;
+    }
+
+    // Kill if off screen (non-arena)
+    if (currentMode!=='arena') {
+      if (m.x<-150||m.x>W+150||m.y<-150||m.y>H+150) { monsters.splice(i,1); continue; }
+    }
+
+    // Invisible: only visible near player
+    if (m.type==='invisible') {
+      const vis = distCC(m,player)<150;
+      if (!vis) continue;
+    }
+
+    // Hit player 1
+    const hitP1 = distCC(m,player)<m.size+player.drawSize && (player.alive!==false);
+    if (hitP1) { m.hitMonster=m; player.hitMonster=m; playerHit(player); if(!gameRunning)return; }
+
+  }
+
+  // Particles
+  for (let i=particles.length-1;i>=0;i--) {
+    const p=particles[i];
+    p.x+=p.vx; p.y+=p.vy; p.life-=0.035;
+    if (p.life<=0) particles.splice(i,1);
+  }
+
+  // HUD cooldowns
+  const now2=performance.now();
+  const drem=DASH_CD-(now2-dashCooldown);
+  dashCdEl.textContent = drem>0 ? `⚡ Рывок: ${(drem/1000).toFixed(1)}с` : '⚡ Рывок: готов';
+  const trem=TP_CD-(now2-tpCooldown);
+  tpCdEl.textContent   = trem>0 ? `🌀 Телепорт: ${(trem/1000).toFixed(1)}с` : '🌀 Телепорт: готов';
+}
+
+// ═══ DRAW ════════════════════════════════════════════════════════
+function drawPlayer(p, color) {
+  const ds = p===player ? player.drawSize : p.size;
+  if (shieldActive && p===player) {
+    ctx.shadowBlur=20; ctx.shadowColor='#00ccff';
+    ctx.strokeStyle='#00eeff'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.arc(p.x,p.y,ds+10,0,Math.PI*2); ctx.stroke();
+    ctx.shadowBlur=0;
+  }
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.arc(p.x,p.y,ds,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='white';
+  ctx.beginPath(); ctx.arc(p.x-ds*0.25,p.y-ds*0.25,ds*0.26,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(p.x+ds*0.25,p.y-ds*0.25,ds*0.26,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#003399';
+  ctx.beginPath(); ctx.arc(p.x-ds*0.24,p.y-ds*0.22,ds*0.13,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(p.x+ds*0.24,p.y-ds*0.22,ds*0.13,0,Math.PI*2); ctx.fill();
+}
+
+function draw(ts) {
+  ctx.clearRect(0,0,W,H);
+
+  // Night overlay
+  if (isNight) {
+    ctx.fillStyle='#030a03';
+    ctx.fillRect(0,0,W,H);
+    const grad = ctx.createRadialGradient(player.x,player.y,0,player.x,player.y,NIGHT_RADIUS);
+    grad.addColorStop(0,'rgba(26,60,26,1)');
+    grad.addColorStop(0.7,'rgba(26,60,26,0.85)');
+    grad.addColorStop(1,'rgba(3,10,3,0)');
+    ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(player.x,player.y,NIGHT_RADIUS,0,Math.PI*2); ctx.fill();
+  } else {
+    ctx.fillStyle='#1a3c1a'; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='#0f2a0f';
+    trees.forEach(t=>{ ctx.beginPath(); ctx.arc(t.x,t.y,t.r,0,Math.PI*2); ctx.fill(); });
+  }
+
+  // Arena boundary
+  if (currentMode==='arena'&&arenaRadius>0) {
+    ctx.strokeStyle='rgba(255,80,0,0.6)'; ctx.lineWidth=4;
+    ctx.setLineDash([12,8]);
+    ctx.beginPath(); ctx.arc(W/2,H/2,arenaRadius,0,Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0,0,W,H);
+    ctx.arc(W/2,H/2,arenaRadius,0,Math.PI*2,true);
+    ctx.fillStyle='rgba(0,0,0,0.35)'; ctx.fill(); ctx.restore();
+  }
+
+  // Hazards
+  hazards.forEach(h => {
+    ctx.save();
+    if (h.type==='swamp') {
+      ctx.fillStyle='rgba(20,80,20,0.7)';
+      ctx.beginPath(); ctx.ellipse(h.x,h.y,h.r*1.4,h.r*0.8,0,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='rgba(0,200,50,0.3)';
+      ctx.font='16px serif'; ctx.textAlign='center'; ctx.fillText('🌿',h.x,h.y+5);
+    } else if (h.type==='spikes') {
+      ctx.strokeStyle='#cc4400'; ctx.lineWidth=2;
+      for (let k=0;k<8;k++) {
+        const a=k/8*Math.PI*2;
+        ctx.beginPath(); ctx.moveTo(h.x,h.y);
+        ctx.lineTo(h.x+Math.cos(a)*h.r,h.y+Math.sin(a)*h.r); ctx.stroke();
+      }
+      ctx.fillStyle='#882200';
+      ctx.beginPath(); ctx.arc(h.x,h.y,h.r*0.4,0,Math.PI*2); ctx.fill();
+    } else if (h.type==='portal') {
+      ctx.translate(h.x,h.y); ctx.rotate(h.angle||0);
+      const pg=ctx.createRadialGradient(0,0,0,0,0,h.r);
+      pg.addColorStop(0,'rgba(150,0,255,0.9)'); pg.addColorStop(1,'rgba(50,0,150,0)');
+      ctx.fillStyle=pg; ctx.beginPath(); ctx.arc(0,0,h.r,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='#cc44ff'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.arc(0,0,h.r,0,Math.PI*2); ctx.stroke();
+    }
+    ctx.restore();
+  });
+
+
+  // Decoy
+  if (decoy) {
+    ctx.strokeStyle='rgba(255,220,50,0.8)'; ctx.lineWidth=2;
+    ctx.setLineDash([5,5]);
+    ctx.beginPath(); ctx.arc(decoy.x,decoy.y,20,0,Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font='18px serif'; ctx.textAlign='center';
+    ctx.fillText('🎯',decoy.x,decoy.y+6);
+  }
+
+  // Green gem
+  if (gem.active) {
+    ctx.fillStyle='#00ff88';
+    ctx.beginPath();
+    ctx.moveTo(gem.x, gem.y-gem.size);
+    ctx.lineTo(gem.x+gem.size*0.7, gem.y+gem.size*0.5);
+    ctx.lineTo(gem.x-gem.size*0.7, gem.y+gem.size*0.5);
+    ctx.closePath(); ctx.fill();
+  }
+
+  // Special gems
+  function drawSpecGem(g, color, shape='circle') {
+    if (!g.active) return;
+    ctx.fillStyle=color;
+    ctx.beginPath();
+    if (shape==='diamond') {
+      ctx.moveTo(g.x,g.y-g.size); ctx.lineTo(g.x+g.size,g.y);
+      ctx.lineTo(g.x,g.y+g.size); ctx.lineTo(g.x-g.size,g.y); ctx.closePath();
+    } else {
+      ctx.arc(g.x,g.y,g.size,0,Math.PI*2);
+    }
+    ctx.fill();
+  }
+  drawSpecGem(goldGem,'#ffd700','diamond');
+  drawSpecGem(poisGem,'#aa00ff');
+  drawSpecGem(iceGem,'#aaddff');
+  drawSpecGem(magnetGemObj,'#ff8800');
+
+  // Blue orb
+  if (blueOrb.active) {
+    ctx.shadowBlur=16; ctx.shadowColor='#3399ff';
+    ctx.fillStyle='#66aaff';
+    ctx.beginPath(); ctx.arc(blueOrb.x,blueOrb.y,blueOrb.size,0,Math.PI*2); ctx.fill();
+    ctx.shadowBlur=0;
+  }
+
+  // Monsters
+  monsters.forEach(m => {
+    if (m.type==='invisible') {
+      const vis = distCC(m,player)<150;
+      if (!vis) return;
+    }
+    ctx.fillStyle = m.color;
+    ctx.shadowBlur=8; ctx.shadowColor=m.color;
+    ctx.beginPath(); ctx.arc(m.x,m.y,m.size,0,Math.PI*2); ctx.fill();
+    ctx.shadowBlur=0;
+    // Eyes
+    ctx.fillStyle='white';
+    ctx.beginPath(); ctx.arc(m.x-m.size*0.28,m.y-m.size*0.2,m.size*0.22,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(m.x+m.size*0.28,m.y-m.size*0.2,m.size*0.22,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#000';
+    ctx.beginPath(); ctx.arc(m.x-m.size*0.27,m.y-m.size*0.18,m.size*0.11,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(m.x+m.size*0.27,m.y-m.size*0.18,m.size*0.11,0,Math.PI*2); ctx.fill();
+    // Miniboss HP bar
+    if (m.type==='miniboss') {
+      ctx.fillStyle='#333'; ctx.fillRect(m.x-m.size,m.y-m.size-10,m.size*2,6);
+      ctx.fillStyle='#ff4444'; ctx.fillRect(m.x-m.size,m.y-m.size-10,m.size*2*(m.hp/3),6);
+    }
+  });
+
+  // Projectiles
+  projectiles.forEach(p => {
+    ctx.fillStyle=p.color;
+    ctx.shadowBlur=8; ctx.shadowColor=p.color;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fill();
+    ctx.shadowBlur=0;
+  });
+
+  // Players
+  drawPlayer(player, player.color);
+
+  // Night mask overlay
+  if (isNight) {
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0,0,W,H);
+    ctx.arc(player.x,player.y,NIGHT_RADIUS,0,Math.PI*2,true);
+    ctx.fillStyle='rgba(3,10,3,0.97)'; ctx.fill(); ctx.restore();
+  }
+
+  // Particles
+  particles.forEach(p => {
+    ctx.globalAlpha=p.life;
+    ctx.fillStyle=p.color;
+    ctx.beginPath(); ctx.arc(p.x,p.y,4,0,Math.PI*2); ctx.fill();
+  });
+  ctx.globalAlpha=1;
+
+  // Freeze overlay
+  if (freezeUntil>performance.now()) {
+    ctx.fillStyle='rgba(150,220,255,0.08)'; ctx.fillRect(0,0,W,H);
+  }
+
+  // Minimap
+  drawMinimap();
+}
+
+function drawMinimap() {
+  mmCtx.clearRect(0,0,MM_W,MM_H);
+  mmCtx.fillStyle='rgba(0,20,0,0.85)'; mmCtx.fillRect(0,0,MM_W,MM_H);
+  const sx=MM_W/W, sy=MM_H/H;
+  // Arena ring
+  if (currentMode==='arena'&&arenaRadius>0) {
+    mmCtx.strokeStyle='rgba(255,80,0,0.6)'; mmCtx.lineWidth=1;
+    mmCtx.beginPath(); mmCtx.arc(MM_W/2,MM_H/2,arenaRadius*sx,0,Math.PI*2); mmCtx.stroke();
+  }
+  // Monsters
+  mmCtx.fillStyle='#ff4444';
+  monsters.forEach(m=>{ mmCtx.beginPath(); mmCtx.arc(m.x*sx,m.y*sy,3,0,Math.PI*2); mmCtx.fill(); });
+  // Gems
+  if (gem.active) { mmCtx.fillStyle='#00ff88'; mmCtx.beginPath(); mmCtx.arc(gem.x*sx,gem.y*sy,3,0,Math.PI*2); mmCtx.fill(); }
+  // Player 1
+  mmCtx.fillStyle=player.color;
+  mmCtx.beginPath(); mmCtx.arc(player.x*sx,player.y*sy,4,0,Math.PI*2); mmCtx.fill();
+}
+
+// ═══ GAME STATE ══════════════════════════════════════════════════
+function gameOver() {
+  gameRunning=false;
+  if (isQuestOpen) closeQuests();
+  awardSessionCoins();
+  goTitle.textContent = 'ТЫ ПОЙМАН!';
+  goSub.textContent   = 'Монстры настигли тебя.';
+  goScore.textContent = score;
+  document.getElementById('gameOver').style.display='flex';
+}
+
+function winGame() {
+  gameRunning=false;
+  awardSessionCoins();
+  earnCoins(10, 'победа!');
+  winScore.textContent=score;
+  document.getElementById('winScreen').style.display='flex';
+}
+
+function resetState() {
+  score=0; bossSpawned=false; monsters=[]; projectiles.length=0; particles.length=0;
+  shieldActive=false; shieldCooldown=false; extraLifeUsed=false;
+  freezeUntil=0; magnetUntil=0; shrinkUntil=0; decoy=null;
+  combo=0; comboEl.style.display='none'; statusEl.textContent='';
+  Object.keys(UPG).forEach(k=>{ UPG[k].bought = typeof UPG[k].bought==='number' ? 0 : false; });
+  player.x=W/2; player.y=H/2;
+  scoreEl.textContent='Очки: 0';
+  blueOrb.active=false; blueOrb.lastSpawnTime=performance.now(); blueOrb.spawnedAt=0;
+  [goldGem,poisGem,iceGem,magnetGemObj].forEach(g=>{g.active=false;g.lastSpawn=0;});
+  dashCooldown=0; dashActive=false; tpCooldown=0;
+  arenaRadius=0; arenaWall.style.display='none';
+  isNight=false;
+  spawnGem();
+  spawnHazards();
+  // Reset quest session trackers
+  Object.keys(qTrack).forEach(k => qTrack[k] = 0);
+  questSessionStart = performance.now();
+  sessionCoinsAwarded = false;
+  monsterKillCoins = 0;
+  loadQuestState();
+  updateQuestHUD();
+  applyPerks();
+}
+
+function restartGame() {
+  resetState();
+  ['gameOver','winScreen','pauseOv','shopOverlay'].forEach(id=>document.getElementById(id).style.display='none');
+  if (currentMode==='arena') { arenaRadius=Math.min(W,H)*0.48; arenaWall.style.display='none'; }
+  if (currentMode==='hard')  { isNight=true; }
+  modeLabel.textContent = {normal:'Обычный',hard:'🌑 Ночь',arena:'🔥 Арена'}[currentMode];
+  gameRunning=true; isPaused=false; isShopOpen=false;
+}
+function showMenu() {
+  gameRunning=false; isPaused=false; isShopOpen=false;
+  ['gameOver','winScreen','pauseOv','shopOverlay'].forEach(id=>document.getElementById(id).style.display='none');
+  document.getElementById('mainMenu').style.display='flex';
+}
+function startGame(mode) {
+  currentMode=mode;
+  document.getElementById('mainMenu').style.display='none';
+  restartGame();
+}
+function togglePause() {
+  if (!gameRunning||isShopOpen) return;
+  isPaused=!isPaused;
+  document.getElementById('pauseOv').style.display=isPaused?'flex':'none';
+  if (isPaused) Object.keys(keys).forEach(k=>keys[k]=false);
+}
+
+function spawnBlueOrb(ts) {
+  blueOrb.x=60+Math.random()*(W-120); blueOrb.y=60+Math.random()*(H-120);
+  blueOrb.active=true; blueOrb.lastSpawnTime=ts; blueOrb.spawnedAt=ts;
+}
+
+// ── Main loop ────────────────────────────────────────────────────
+function loop(ts) {
+  update(ts);
+  draw(ts);
+  requestAnimationFrame(loop);
+}
+
+// ── Init ─────────────────────────────────────────────────────────
+buildShopHTML();
+updateCoinHUD();
+document.getElementById('mainMenu').style.display='flex';
+loop();
+
+
+
+// ═══ CURRENCY (🪙 кристаллы) ════════════════════════════════════
+function loadCoins() {
+  try { coins = parseInt(safeLS.getItem(COIN_KEY)) || 0; } catch(e) { coins = 0; }
+  updateCoinHUD();
+}
+function saveCoins() {
+  try { safeLS.setItem(COIN_KEY, coins); } catch(e) {}
+}
+function earnCoins(amount, reason) {
+  coins += amount;
+  saveCoins();
+  updateCoinHUD();
+  // Float up text
+  if (reason) showCoinFloat('+' + amount + ' 🪙 ' + reason);
+}
+function spendCoins(amount) {
+  if (coins < amount) return false;
+  coins -= amount;
+  saveCoins();
+  updateCoinHUD();
+  return true;
+}
+function updateCoinHUD() {
+  const el = document.getElementById('coin-hud');
+  if (el) el.textContent = '🪙 ' + coins;
+  const pb = document.getElementById('perm-coins');
+  if (pb) pb.textContent = coins;
+}
+function showCoinFloat(text) {
+  const el = document.createElement('div');
+  el.textContent = text;
+  el.style.cssText = 'position:absolute;left:50%;top:40%;transform:translateX(-50%);color:#ffd700;font-size:16px;font-weight:bold;pointer-events:none;z-index:999;text-shadow:0 0 6px #aa8800;transition:opacity 1.5s,top 1.5s;';
+  document.getElementById('gameContainer').appendChild(el);
+  requestAnimationFrame(() => { el.style.top = '25%'; el.style.opacity = '0'; });
+  setTimeout(() => el.remove(), 1600);
+}
+
+// sessionCoinsAwarded / monsterKillCoins declared near top
+
+function awardSessionCoins() {
+  if (sessionCoinsAwarded) return;
+  sessionCoinsAwarded = true;
+  // 1 coin per 5 score
+  const fromScore = Math.floor(score / 5);
+  if (fromScore > 0) earnCoins(fromScore, 'за очки');
+  // Coins from monster kills
+  if (monsterKillCoins > 0) earnCoins(monsterKillCoins, 'за монстров');
+}
+
+// ═══ PERMANENT SHOP ══════════════════════════════════════════════
+
+
+
+function loadPerks() {
+  try {
+    const saved = safeLS.getItem(PERM_KEY);
+    if (saved) permState = JSON.parse(saved);
+  } catch(e) { permState = {}; }
+  // Ensure all keys exist
+  PERM_ITEMS.forEach(p => { if (!(p.id in permState)) permState[p.id] = 0; });
+}
+function savePerks() {
+  try { safeLS.setItem(PERM_KEY, JSON.stringify(permState)); } catch(e) {}
+}
+
+function applyPerks() {
+  // startSpeed
+  const speedLv = permState.startSpeed || 0;
+  player.baseSpeed = 5 + speedLv;
+
+  // bonusScore
+  const bonusLv = permState.bonusScore || 0;
+  if (bonusLv > 0) { score += bonusLv * 2; scoreEl.textContent = 'Очки: ' + score; }
+
+  // startShield
+  if (permState.startShield) { shieldActive = true; }
+
+  // orbCooldown
+  blueOrb.spawnInterval = 20000 - (permState.orbCooldown || 0) * 5000;
+
+  // comboKeep
+  // handled dynamically in update via COMBO_TIMEOUT_ACTUAL
+
+  // extraLife handled in playerHit
+}
+
+function buildPermShopHTML() {
+  const grid = document.getElementById('perm-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  PERM_ITEMS.forEach(item => {
+    const lv = permState[item.id] || 0;
+    const maxed = lv >= item.maxLv;
+    const cost = maxed ? 0 : item.cost[lv];
+    const canAfford = coins >= cost && !maxed;
+    const div = document.createElement('div'); div.className = 'pi'; div.id = 'pi-' + item.id;
+    div.innerHTML = `
+      <div class="p-ic">${item.ic}</div>
+      <div class="p-nm">${item.nm}</div>
+      <div class="p-ds">${item.ds}</div>
+      <div class="p-lv">${maxed ? '✓ Макс. уровень' : 'Уровень ' + lv + '/' + item.maxLv}</div>
+      <div class="p-cost">${maxed ? '—' : '🪙 ' + cost}</div>
+      <button onclick="buyPerk('${item.id}')" ${(!canAfford) ? 'disabled' : ''}>
+        ${maxed ? 'Куплено' : 'Улучшить'}
+      </button>`;
+    grid.appendChild(div);
+  });
+}
+
+function buyPerk(id) {
+  const item = PERM_ITEMS.find(p => p.id === id);
+  if (!item) return;
+  const lv = permState[id] || 0;
+  if (lv >= item.maxLv) return;
+  const cost = item.cost[lv];
+  if (!spendCoins(cost)) return;
+  permState[id] = lv + 1;
+  savePerks();
+  buildPermShopHTML();
+  updateCoinHUD();
+}
+
+function openPermShop() {
+  isPermShopOpen = true;
+  buildPermShopHTML();
+  updateCoinHUD();
+  document.getElementById('permShop').style.display = 'flex';
+}
+function closePermShop() {
+  isPermShopOpen = false;
+  document.getElementById('permShop').style.display = 'none';
+}
+
+// Init
+loadCoins();
+loadPerks();
+
+// ═══ DAILY QUESTS ════════════════════════════════════════════════
+
+// Seed: current date string → deterministic daily selection
+function seededRand(seed, n) {
+  let x = Math.sin(seed + n) * 43758.5453123;
+  return x - Math.floor(x);
+}
+
+
+// Pick 3 quests for today deterministically
+function getTodayQuests() {
+  const seed = todaySeed();
+  const pool = [...QUEST_POOL];
+  const chosen = [];
+  const used = new Set();
+  for (let i = 0; chosen.length < 3 && i < 100; i++) {
+    const idx = Math.floor(seededRand(seed, i) * pool.length);
+    if (!used.has(idx)) { used.add(idx); chosen.push({...pool[idx]}); }
+  }
+  return chosen;
+}
+
+// Quest progress storage (daily persistence)
+
+function loadQuestState() {
+  try {
+    const saved = safeSS.getItem(QUEST_KEY);
+    if (saved) { questState = JSON.parse(saved); return; }
+  } catch(e) {}
+  questState = getTodayQuests().map(q => ({...q, progress: 0, claimed: false}));
+  saveQuestState();
+}
+function saveQuestState() {
+  try { safeSS.setItem(QUEST_KEY, JSON.stringify(questState)); } catch(e) {}
+}
+
+// questSessionStart declared near top
+
+function questTick(type, amount=1) {
+  if (!gameRunning || isPaused) return;
+  if (type !== 'score') qTrack[type] = (qTrack[type] || 0) + amount;
+  qTrack.score = score; // always sync
+  // Update progress
+  let updated = false;
+  questState.forEach(q => {
+    if (q.claimed) return;
+    let prog = 0;
+    if (q.type === 'time') {
+      prog = Math.round((performance.now() - questSessionStart) / 1000);
+    } else {
+      prog = qTrack[q.type] || 0;
+    }
+    const newProg = Math.min(prog, q.target);
+    if (newProg !== q.progress) { q.progress = newProg; updated = true; }
+  });
+  if (updated) { saveQuestState(); updateQuestHUD(); }
+}
+
+function questTimeTick() {
+  if (!gameRunning || isPaused || !questSessionStart) return;
+  questState.forEach(q => {
+    if (q.claimed || q.type !== 'time') return;
+    q.progress = Math.min(Math.round((performance.now() - questSessionStart) / 1000), q.target);
+  });
+  saveQuestState();
+  updateQuestHUD();
+}
+
+function claimQuest(idx) {
+  const q = questState[idx];
+  if (!q || q.claimed || q.progress < q.target) return;
+  q.claimed = true;
+  score += q.reward;
+  scoreEl.textContent = 'Очки: ' + score;
+  earnCoins(Math.ceil(q.reward / 2), 'квест');
+  saveQuestState();
+  buildQuestHTML();
+  updateQuestHUD();
+  addParticles(player.x, player.y, '#ffdd44', 20);
+}
+
+function buildQuestHTML() {
+  const list = document.getElementById('quest-list');
+  list.innerHTML = '';
+  questState.forEach((q, i) => {
+    const pct = Math.min(100, Math.round(q.progress / q.target * 100));
+    const done = q.progress >= q.target;
+    const div = document.createElement('div');
+    div.className = 'qi' + (done ? ' done' : '');
+    div.innerHTML = `
+      <div class="q-ic">${q.ic}</div>
+      <div class="q-inf">
+        <div class="q-nm">${q.nm}</div>
+        <div class="q-bar-wrap"><div class="q-bar" style="width:${pct}%"></div></div>
+        <div class="q-prog">${q.desc} — ${q.progress}/${q.target}</div>
+      </div>
+      <div class="q-rew">
+        +${q.reward} очков<br>
+        <button class="q-claim" onclick="claimQuest(${i})" ${(!done || q.claimed) ? 'disabled' : ''}>
+          ${q.claimed ? '✓ Получено' : done ? 'Забрать' : '...'}
+        </button>
+      </div>`;
+    list.appendChild(div);
+  });
+}
+
+function updateQuestHUD() {
+  const hud = document.getElementById('quest-hud');
+  const active = questState.find(q => !q.claimed && q.progress < q.target);
+  if (!active || !gameRunning) { hud.textContent = ''; return; }
+  const pct = Math.round(active.progress / active.target * 100);
+  hud.textContent = `📋 ${active.nm}: ${active.progress}/${active.target}`;
+}
+
+function openQuests() {
+  if (isQuestOpen) return;
+  isQuestOpen = true; isPaused = true;
+  Object.keys(keys).forEach(k => keys[k] = false);
+  buildQuestHTML();
+  document.getElementById('questOverlay').style.display = 'flex';
+}
+function closeQuests() {
+  isQuestOpen = false; isPaused = false;
+  document.getElementById('questOverlay').style.display = 'none';
+}
+
+// Init quests on load
+loadQuestState();
+setInterval(questTimeTick, 1000);
+
+
+// ── Debug helpers ────────────────────────────────────────────────
+window.render_game_to_text = function() {
+  return JSON.stringify({
+    mode: currentMode, score, isPaused, gameRunning,
+    player: { x: Math.round(player.x), y: Math.round(player.y) },
+    monsters: monsters.length,
+    isNight, arenaRadius: Math.round(arenaRadius)
+  });
+};
+window.advanceTime = function(ms) {
+  const steps = Math.max(1, Math.round(ms / (1000/60)));
+  for (let i=0; i<steps; i++) update(performance.now());
+  draw(performance.now());
+};
+</script>
+</body>
+</html
